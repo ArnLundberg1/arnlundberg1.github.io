@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>School Translate — Google Sites Embed</title>
+  <meta name="description" content="A single‑file translator for schools. Works in Google Sites. Online API or offline glossary fallback. TTS, copy, swap, history, and quick pronounce." />
+  <style>
+    :root{
+      --bg:#0b0c10;--panel:#121621;--text:#eaf0ff;--muted:#9aa3b2;--brand:#4da3ff;--accent:#2de0b2;--radius:18px;--shadow:0 10px 30px rgba(0,0,0,.35);--ring:0 0 0 3px rgba(77,163,255,.25)
+    }
+    html[data-theme="light"]{--bg:#f7f8fc;--panel:#ffffff;--text:#0b1020;--muted:#5e6777;--brand:#2f62ff;--accent:#16c79a;--shadow:0 10px 28px rgba(12,16,32,.08);--ring:0 0 0 3px rgba(47,98,255,.22)}
+    html[data-theme="dark"]{--bg:#0b0c10;--panel:#111522;--text:#eaf0ff;--muted:#a4afc1;--brand:#6aa7ff;--accent:#2de0b2}
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.6}
+
+    .container{max-width:1000px;margin:0 auto;padding:20px}
+    header{position:sticky;top:0;background:linear-gradient( to bottom, rgba(0,0,0,.35), rgba(0,0,0,0) ), var(--bg);backdrop-filter:saturate(160%) blur(8px);z-index:20}
+    .nav{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:14px 10px}
+    .brand{display:flex;align-items:center;gap:10px}
+    .logo{width:32px;height:32px;border-radius:10px;background:conic-gradient(from 140deg, var(--brand), var(--accent), var(--brand));box-shadow:0 6px 14px rgba(0,0,0,.18)}
+    .title{font-weight:800}
+    .actions{display:flex;gap:8px;flex-wrap:wrap}
+    button,select{border-radius:12px;border:1px solid rgba(120,130,160,.25);background:var(--panel);color:var(--text);padding:10px 12px;cursor:pointer;box-shadow:var(--shadow)}
+    button:focus,select:focus,textarea:focus,input:focus{outline:none;box-shadow:var(--ring)}
+
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}}
+
+    .panel{background:var(--panel);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}
+    label{display:block;color:var(--muted);margin-bottom:6px}
+    textarea{width:100%;min-height:180px;border-radius:14px;border:1px solid rgba(120,130,160,.25);background:transparent;color:var(--text);padding:12px;resize:vertical}
+
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .grow{flex:1}
+    .muted{color:var(--muted)}
+    .pill{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.06)}
+
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .toolbar button{border:1px solid rgba(120,130,160,.25)}
+
+    .status{min-height:22px}
+
+    .history{max-height:240px;overflow:auto;border:1px dashed rgba(120,130,160,.3);border-radius:12px;padding:10px}
+    .hist-item{padding:8px;border-radius:10px}
+    .hist-item + .hist-item{margin-top:6px}
+    .hist-item:hover{background:rgba(255,255,255,.06)}
+
+    .small{font-size:.9rem}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <div class="brand"><div class="logo" aria-hidden="true"></div><div class="title">School Translate</div></div>
+      <div class="actions">
+        <select id="apiMode" title="Translation mode">
+          <option value="online">Online API</option>
+          <option value="offline">Offline Glossary</option>
+          <option value="auto">Auto (try API, fallback)</option>
+        </select>
+        <button id="theme">☀︎ / ☾</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" aria-live="polite">
+    <section class="panel" aria-label="Translator">
+      <div class="row">
+        <div class="grow">
+          <label for="fromText">From</label>
+          <div class="row">
+            <select id="fromLang" class="grow"></select>
+            <button id="swap" title="Swap languages">⇆</button>
+          </div>
+          <textarea id="fromText" placeholder="Type or paste text to translate…"></textarea>
+          <div class="toolbar">
+            <button id="paste">Paste</button>
+            <button id="clear">Clear</button>
+            <button id="speakFrom">🔈 Read</button>
+            <span class="muted small" id="charCount">0 chars</span>
+          </div>
+        </div>
+        <div class="grow">
+          <label for="toText">To</label>
+          <div class="row">
+            <select id="toLang" class="grow"></select>
+            <button id="copy" title="Copy translation">Copy</button>
+          </div>
+          <textarea id="toText" placeholder="Translation will appear here…"></textarea>
+          <div class="toolbar">
+            <button id="speakTo">🔈 Read</button>
+            <button id="translate">Translate</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <div class="grow muted small status" id="status">Mode: Auto (tries API, falls back to glossary).</div>
+        <div class="row">
+          <label class="pill small">API URL&nbsp;<input id="apiUrl" style="width:280px" placeholder="https://libretranslate.de/translate" /></label>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="History & Glossary" style="margin-top:12px">
+      <div class="row">
+        <div class="grow">
+          <h3 style="margin:0 0 8px">History</h3>
+          <div id="history" class="history small" aria-label="Recent translations"></div>
+          <div class="row" style="margin-top:8px">
+            <button id="exportHist">Export CSV</button>
+            <button id="clearHist">Clear History</button>
+          </div>
+        </div>
+        <div class="grow">
+          <h3 style="margin:0 0 8px">Offline Glossary</h3>
+          <p class="muted small">Used when in <em>Offline</em> mode or when API is unavailable. Add your own pairs below.</p>
+          <div class="row">
+            <input id="gSrc" placeholder="hello" />
+            <input id="gDst" placeholder="hej" />
+            <select id="gSrcLang"></select>
+            <select id="gDstLang"></select>
+            <button id="gAdd">Add</button>
+          </div>
+          <div id="glossary" class="history small" style="margin-top:8px"></div>
+          <div class="row" style="margin-top:8px">
+            <input type="file" id="gImport" accept=".csv" />
+            <button id="gExport">Export Glossary CSV</button>
+            <button id="gClear">Clear Glossary</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <p class="muted small" style="margin-top:10px">Tip: Works great embedded in Google Sites via <strong>Insert → Embed → Embed code</strong> with an <code>&lt;iframe&gt;</code>. No server required.</p>
+  </main>
+
+  <footer class="container" style="opacity:.8;padding:40px 0 60px">
+    <span class="small">© <span id="year"></span> School Translate • Single‑file app</span>
+  </footer>
+
+<script>
+  // ===== Language list (common school languages) =====
+  const LANGS = [
+    {code:'auto', name:'Auto‑detect'},
+    {code:'en', name:'English'},
+    {code:'sv', name:'Svenska'},
+    {code:'es', name:'Español'},
+    {code:'fr', name:'Français'},
+    {code:'de', name:'Deutsch'},
+    {code:'it', name:'Italiano'},
+    {code:'pt', name:'Português'},
+    {code:'ru', name:'Русский'},
+    {code:'ar', name:'العربية'},
+    {code:'zh', name:'中文'},
+    {code:'ja', name:'日本語'},
+    {code:'ko', name:'한국어'}
+  ];
+
+  const fromSel = document.getElementById('fromLang');
+  const toSel = document.getElementById('toLang');
+  const gSrcLang = document.getElementById('gSrcLang');
+  const gDstLang = document.getElementById('gDstLang');
+  [fromSel,toSel,gSrcLang,gDstLang].forEach(sel=>{
+    LANGS.filter(l=>sel===fromSel?true:l.code!=='auto').forEach(l=>{
+      const opt = document.createElement('option'); opt.value=l.code; opt.textContent=l.name; sel.appendChild(opt);
+    });
+  });
+  fromSel.value = localStorage.getItem('fromLang') || 'auto';
+  toSel.value   = localStorage.getItem('toLang')   || 'sv';
+  gSrcLang.value= 'en'; gDstLang.value='sv';
+
+  // ===== Theme toggle =====
+  const themeBtn = document.getElementById('theme');
+  const savedTheme = localStorage.getItem('theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.dataset.theme = savedTheme || (prefersDark? 'dark':'light');
+  themeBtn.addEventListener('click',()=>{
+    const next = document.documentElement.dataset.theme==='dark'?'light':'dark';
+    document.documentElement.dataset.theme = next; localStorage.setItem('theme', next);
+  });
+
+  // ===== Controls =====
+  const fromText = document.getElementById('fromText');
+  const toText   = document.getElementById('toText');
+  const charCount= document.getElementById('charCount');
+  const statusEl = document.getElementById('status');
+  const apiMode  = document.getElementById('apiMode');
+  const apiUrlEl = document.getElementById('apiUrl');
+  const defaultApi = 'https://libretranslate.de/translate';
+  apiUrlEl.value = localStorage.getItem('apiUrl') || defaultApi;
+  apiMode.value  = localStorage.getItem('apiMode') || 'auto';
+  function setStatus(msg){ statusEl.textContent = msg; }
+
+  fromText.addEventListener('input',()=>{
+    charCount.textContent = (fromText.value||'').length + ' chars';
+  });
+
+  document.getElementById('swap').addEventListener('click',()=>{
+    const f = fromSel.value, t = toSel.value;
+    if(t==='auto') return; // don't swap into auto
+    fromSel.value = t; toSel.value = f==='auto' ? 'en' : f;
+    localStorage.setItem('fromLang', fromSel.value);
+    localStorage.setItem('toLang', toSel.value);
+  });
+
+  document.getElementById('paste').addEventListener('click', async()=>{
+    try{ fromText.value = await navigator.clipboard.readText(); fromText.dispatchEvent(new Event('input')); }
+    catch{ alert('Clipboard permission denied. Paste with Ctrl/⌘+V.'); }
+  });
+  document.getElementById('clear').addEventListener('click',()=>{ fromText.value=''; fromText.dispatchEvent(new Event('input')); });
+  document.getElementById('copy').addEventListener('click',async()=>{
+    try{ await navigator.clipboard.writeText(toText.value||''); setStatus('Copied translation to clipboard.'); }
+    catch{ alert('Clipboard permission denied.'); }
+  });
+
+  // Persist language choices
+  [fromSel,toSel,apiMode,apiUrlEl].forEach(el=> el.addEventListener('change',()=>{
+    localStorage.setItem('fromLang', fromSel.value);
+    localStorage.setItem('toLang', toSel.value);
+    localStorage.setItem('apiMode', apiMode.value);
+    localStorage.setItem('apiUrl', apiUrlEl.value);
+    setStatus(`Mode: ${apiMode.options[apiMode.selectedIndex].text}.`);
+  }));
+
+  // ===== Text-to-speech =====
+  function speak(text, lang){
+    if(!window.speechSynthesis) return alert('Speech not supported in this browser.');
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang || 'en';
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  }
+  document.getElementById('speakFrom').addEventListener('click',()=> speak(fromText.value, fromSel.value==='auto'?'en':fromSel.value));
+  document.getElementById('speakTo').addEventListener('click',()=> speak(toText.value, toSel.value));
+
+  // ===== History =====
+  const histEl = document.getElementById('history');
+  const HIST_KEY='translateHistoryV1';
+  function getHistory(){ try{return JSON.parse(localStorage.getItem(HIST_KEY)||'[]')}catch(e){return[]} }
+  function saveHistory(h){ localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(-100))); renderHistory(); }
+  function renderHistory(){
+    const h=getHistory(); histEl.innerHTML='';
+    if(h.length===0){ histEl.innerHTML='<div class="muted">No history yet.</div>'; return; }
+    h.slice().reverse().forEach(item=>{
+      const div=document.createElement('div'); div.className='hist-item';
+      div.innerHTML = `<div class="small muted">${new Date(item.t).toLocaleString()}</div>
+        <div><strong>${item.srcName} → ${item.dstName}</strong></div>
+        <div class="small">${escapeHtml(item.src)}</div>
+        <div class="small" style="opacity:.8">${escapeHtml(item.dst)}</div>`;
+      div.addEventListener('click',()=>{ fromText.value=item.src; toText.value=item.dst; fromSel.value=item.srcLang; toSel.value=item.dstLang; });
+      histEl.appendChild(div);
+    });
+  }
+  function escapeHtml(s){ return (s||'').replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+  renderHistory();
+
+  document.getElementById('exportHist').addEventListener('click',()=>{
+    const rows = [['time','from_lang','to_lang','source','translation']].concat(getHistory().map(i=>[
+      new Date(i.t).toISOString(), i.srcLang, i.dstLang, i.src.replace(/\n/g,' '), i.dst.replace(/\n/g,' ')
+    ]));
+    downloadCSV('translation-history.csv', rows);
+  });
+  document.getElementById('clearHist').addEventListener('click',()=>{ localStorage.removeItem(HIST_KEY); renderHistory(); });
+
+  function downloadCSV(name, rows){
+    const csv = rows.map(r=> r.map(v=> '"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv'}); const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=name; a.click(); URL.revokeObjectURL(url);
+  }
+
+  // ===== Offline Glossary =====
+  const gListEl = document.getElementById('glossary');
+  const GKEY='offlineGlossaryV1';
+  function getGloss(){ try{return JSON.parse(localStorage.getItem(GKEY)||'[]')}catch{ return [] }
+  }
+  function setGloss(arr){ localStorage.setItem(GKEY, JSON.stringify(arr)); renderGloss(); }
+  function renderGloss(){
+    const g=getGloss(); gListEl.innerHTML='';
+    if(!g.length){ gListEl.innerHTML='<div class="muted">No entries. Add some or import CSV (src,dst,srcLang,dstLang)</div>'; return; }
+    g.forEach((e,idx)=>{
+      const row=document.createElement('div'); row.className='row'; row.style.marginBottom='6px';
+      row.innerHTML=`<span class="pill">${escapeHtml(e.src)}</span> → <span class="pill">${escapeHtml(e.dst)}</span> <span class="muted small">(${e.srcLang}→${e.dstLang})</span>`;
+      const del=document.createElement('button'); del.textContent='Remove'; del.addEventListener('click',()=>{ const arr=getGloss(); arr.splice(idx,1); setGloss(arr); });
+      row.appendChild(del); gListEl.appendChild(row);
+    });
+  }
+  renderGloss();
+
+  // Seed with a few school-friendly pairs
+  if(getGloss().length===0){
+    setGloss([
+      {src:'hello',dst:'hej',srcLang:'en',dstLang:'sv'},
+      {src:'teacher',dst:'lärare',srcLang:'en',dstLang:'sv'},
+      {src:'student',dst:'estudiante',srcLang:'en',dstLang:'es'},
+      {src:'good morning',dst:'buenos días',srcLang:'en',dstLang:'es'},
+      {src:'homework',dst:'devoirs',srcLang:'en',dstLang:'fr'}
+    ].concat(getGloss()));
+  }
+
+  document.getElementById('gAdd').addEventListener('click',()=>{
+    const src=document.getElementById('gSrc').value.trim();
+    const dst=document.getElementById('gDst').value.trim();
+    const sL=gSrcLang.value, dL=gDstLang.value; if(!src||!dst) return;
+    const arr=getGloss(); arr.push({src,dst,srcLang:sL,dstLang:dL}); setGloss(arr);
+    document.getElementById('gSrc').value=''; document.getElementById('gDst').value='';
+  });
+  document.getElementById('gExport').addEventListener('click',()=>{
+    const rows = [['src','dst','srcLang','dstLang']].concat(getGloss().map(e=>[e.src,e.dst,e.srcLang,e.dstLang]));
+    downloadCSV('offline-glossary.csv', rows);
+  });
+  document.getElementById('gClear').addEventListener('click',()=>{ if(confirm('Clear all glossary entries?')) setGloss([]); });
+  document.getElementById('gImport').addEventListener('change', (e)=>{
+    const file=e.target.files[0]; if(!file) return; const reader=new FileReader();
+    reader.onload=()=>{
+      const lines=String(reader.result).split(/\r?\n/).filter(Boolean); lines.shift(); // drop header
+      const arr=getGloss();
+      lines.forEach(line=>{ const m=line.match(/(?:^|,)("(?:[^"]|"")*"|[^,]*)/g).map(s=>s.replace(/^,?"|"$/g,'').replace(/""/g,'"')); if(m.length>=4){ arr.push({src:m[0],dst:m[1],srcLang:m[2]||'en',dstLang:m[3]||'sv'}); } });
+      setGloss(arr);
+    };
+    reader.readAsText(file);
+  });
+
+  // ===== Translate logic =====
+  async function translate(){
+    const text = fromText.value.trim(); if(!text){ setStatus('Please type something to translate.'); return; }
+    const srcLang = fromSel.value; const dstLang = toSel.value; if(dstLang==='auto'){ toSel.value='en'; }
+    toText.value=''; setStatus('Translating…');
+
+    const mode = apiMode.value;
+    const url = (apiUrlEl.value||'').trim() || defaultApi;
+
+    // Try API if online/auto
+    if(mode!=='offline'){
+      try{
+        const body = {q:text, source: srcLang==='auto'?'auto':srcLang, target: toSel.value, format:'text'};
+        const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+        if(!r.ok) throw new Error('API HTTP '+r.status);
+        const data = await r.json();
+        let out = data.translatedText || data.translation || '';
+        if(out){
+          toText.value = out; setStatus('Translated via API.');
+          pushHistory(text, out, srcLang, toSel.value);
+          return;
+        }
+      }catch(err){
+        if(mode==='online'){ setStatus('API error: '+err.message); return; }
+        setStatus('API failed; using offline glossary…');
+      }
+    }
+
+    // Fallback: offline glossary (dictionary-style word/phrase mapping)
+    const out = offlineTranslate(text, srcLang, toSel.value);
+    toText.value = out; setStatus('Offline glossary result.');
+    pushHistory(text, out, srcLang, toSel.value);
+  }
+
+  function pushHistory(src, dst, srcLang, dstLang){
+    const arr=getHistory(); arr.push({t:Date.now(), src, dst, srcLang, dstLang, srcName:langName(srcLang), dstName:langName(dstLang)}); saveHistory(arr);
+  }
+  function langName(code){ return (LANGS.find(l=>l.code===code)||{}).name || code; }
+
+  function offlineTranslate(text, srcLang, dstLang){
+    const dict = getGloss().filter(e=> e.srcLang===srcLang.replace('auto','en') && e.dstLang===dstLang);
+    if(!dict.length){ return text; }
+    let out = ' ' + text + ' ';
+    // Replace longest phrases first
+    dict.sort((a,b)=> b.src.length - a.src.length).forEach(e=>{
+      const re = new RegExp('(^|[^A-Za-zÀ-ÖØ-öø-ÿ])'+escapeReg(e.src)+'([^A-Za-zÀ-ÖØ-öø-ÿ]|$)','gi');
+      out = out.replace(re, (m,p1,p2)=> p1 + e.dst + p2);
+    });
+    return out.trim();
+  }
+  function escapeReg(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+
+  document.getElementById('translate').addEventListener('click', translate);
+  fromText.addEventListener('keydown',(e)=>{ if(e.key==='Enter' && (e.ctrlKey||e.metaKey)) translate(); });
+
+  // ===== Init year =====
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  // ===== Helpful defaults =====
+  fromText.placeholder = 'Ex: Write a sentence here to translate to your target language…\nT.ex.: Skriv en mening här för att översätta till ditt målspråk…';
+
+</script>
+</body>
+</html>
